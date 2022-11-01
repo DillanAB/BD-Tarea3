@@ -1,0 +1,36 @@
+<%- include ../../layouts/header.ejs %>
+<br>
+<br>
+<div>
+    <a href="/admin/property" class="btn btn-info" type="button">Regresar</a>
+</div>
+<br>
+<table class="table table-dark">
+    <thead class="thead-dark">
+      <tr>
+        <th>Tipo uso</th>
+        <th>Tipo zona</th>
+        <th>#Finca</th>
+        <th>Área</th>
+        <th>Valor fiscal</th>
+        <th>#Medidor</th>
+        <th>Fecha de registro</th>
+        <th>Activo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for( let propertyIndex = 0; propertyIndex < properties[0].length; propertyIndex++ ) { %>
+        <tr>
+          <td> <%= properties[0][propertyIndex].TipoUso %>  </td>
+          <td> <%= properties[0][propertyIndex].TipoZona %>  </td>
+          <td> <%= properties[0][propertyIndex].NumeroFinca %> </td>
+          <td> <%= properties[0][propertyIndex].Area %>  </td>
+          <td> <%= properties[0][propertyIndex].ValorFiscal %>  </td>
+          <td> <%= properties[0][propertyIndex].NumeroMedidor %>  </td>
+          <td> <%= properties[0][propertyIndex].FechaRegistro %>  </td>
+          <td> <%= properties[0][propertyIndex].Activo %>  </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+<%- include ../../layouts/foot.ejs %>

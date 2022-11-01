@@ -1,0 +1,34 @@
+<%- include ../../layouts/header.ejs %>
+<br>
+<br>
+<div>
+    <a href="/admin/user" class="btn btn-info" type="button">Regresar</a>
+</div>
+<br>
+<table class="table table-dark">
+    <thead class="thead-dark">
+      <tr>
+        <th>#ID</th>
+        <th>Id persona</th>
+        <th>Username</th>
+        <th>Password</th>
+        <th>Tipo de ususario</th>
+        <th>Activo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for( let usersIndex = 0; usersIndex < users[0].length; usersIndex++ ) { %>
+        <tr>
+          <td> <%= users[0][usersIndex].Id %>  </td>
+          <td> <%= users[0][usersIndex].IdPersona %>  </td>
+          <td> <%= users[0][usersIndex].Username %>  </td>
+          <td> <%= users[0][usersIndex].Password %>  </td>
+          <td> <%= users[0][usersIndex].TipoUsuario %>  </td>
+          <td> <%= users[0][usersIndex].Activo %>  </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+
+
+<%- include ../../layouts/foot.ejs %>

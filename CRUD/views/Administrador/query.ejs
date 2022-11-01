@@ -1,0 +1,62 @@
+<%- include ../layouts/header.ejs %>
+<h1>Consultas</h1>
+
+<br>
+<div>
+    <a href="/admin" class="btn btn-primary" type="button">Regresar</a>
+</div>
+<br>
+
+<h2>Propiedades de un propietario</h2>
+<form method="post" action="/admin/consulta1">
+    <div class="form-group">
+        <label for="my-input">Valor del documento de identidad</label>
+        <input id="my-input" class="form-control" type="text" name="valDoc">
+    </div>
+    <div class="form-group">
+        <label for="my-input">Nombre</label>
+        <input id="my-input" class="form-control" type="text" name="name">
+    </div>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Consultar</button>
+</form>
+
+<br>
+<br>
+
+<h2>Propietarios de propiedad</h2>
+<form method="post" action="/admin/consulta2">
+    <div class="form-group">
+        <label for="my-input">Número de finca</label>
+        <input id="my-input" class="form-control" type="text" name="numFinca">
+    </div>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Consultar</button>
+</form>
+
+<br>
+<br>
+
+<h2>Propiedades visibles para un usuario</h2>
+<form method="post" action="/admin/consulta3">
+    <div class="form-group">
+        <label for="my-input">Username</label>
+        <input id="my-input" class="form-control" type="text" name="username">
+    </div>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Consultar</button>
+</form>
+
+<br>
+<br>
+
+<h2>Usuarios que ven una propiedad</h2>
+<form method="post" action="/admin/consulta4">
+    <div class="form-group">
+        <label for="my-input">Número de finca</label>
+        <input id="my-input" class="form-control" type="text" name="numFinca">
+    </div>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Consultar</button>
+</form>
+<%- include ../layouts/foot.ejs %>

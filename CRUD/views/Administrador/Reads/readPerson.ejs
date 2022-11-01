@@ -1,0 +1,38 @@
+<%- include ../../layouts/header.ejs %>
+<br>
+<br>
+<div>
+    <a href="/admin/person" class="btn btn-info" type="button">Regresar</a>
+</div>
+<br>
+<table class="table table-dark">
+    <thead class="thead-dark">
+      <tr>
+        <th>#ID</th>
+        <th>Tipo documento de identidad</th>
+        <th>Valor documento de identidad</th>
+        <th>Nombre</th>
+        <th>Email</th>
+        <th>#Teléfono 1</th>
+        <th>#Teléfono 2</th>
+        <th>Activo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for( let personIndex = 0; personIndex < people[0].length; personIndex++ ) { %>
+        <tr>
+          <td> <%= people[0][personIndex].Id %>  </td>
+          <td> <%= people[0][personIndex].IdTipoDocumentoIdentidad %>  </td>
+          <td> <%= people[0][personIndex].ValorDocumentoIdentidad %>  </td>
+          <td> <%= people[0][personIndex].Nombre %>  </td>
+          <td> <%= people[0][personIndex].Email %>  </td>
+          <td> <%= people[0][personIndex].Telefono1 %>  </td>
+          <td> <%= people[0][personIndex].Telefono2 %>  </td>
+          <td> <%= people[0][personIndex].Activo %>  </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+
+
+<%- include ../../layouts/foot.ejs %>

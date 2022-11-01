@@ -1,0 +1,136 @@
+<%- include ../layouts/header.ejs %>
+<h1>Asociaciones Personas/Propiedades</h1>
+<br>
+<div>
+    <a href="/admin" class="btn btn-primary" type="button">Regresar</a>
+</div>
+<br>
+<h2>Agregar nueva asociación</h2>
+<form method="post" action="/admin/createAsoPP">
+
+    <div>
+        <label for="my-input">#Identificación persona</label>
+        <select select  class="form-control" name="docVal">
+            <% for( let personaIndex = 0; personaIndex < personas[0].length; personaIndex++ ) { %>
+                <% let val = personas[0][personaIndex].ValorDocumentoIdentidad %>
+                <option value= <%= val %> >
+                    <%= personas[0][personaIndex].ValorDocumentoIdentidad %>
+                </option>
+            <% } %>
+        </select>
+    </div>
+
+    <div>
+        <label for="my-input">#Finca</label>
+        <select select  class="form-control" name="numFinca">
+            <% for( let propIndex = 0; propIndex < properties[0].length; propIndex++ ) { %>
+                <% let val = properties[0][propIndex].NumeroFinca %>
+                <option value= <%= val %> >
+                    <%= properties[0][propIndex].NumeroFinca %>
+                </option>
+            <% } %>
+        </select>
+    </div>
+    <br>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Agregar</button>
+</form>
+<br>
+<br>
+
+<h2>Actualizar datos de asociación persona/propiedad</h2>
+<h4>Rellenar campos a actualizar</h4>
+<form method="post" action="/admin/updateAsoPP">
+
+    <div>
+        <label for="my-input">#Identificación persona</label>
+        <select select  class="form-control" name="docVal">
+            <% for( let personaIndex = 0; personaIndex < personas[0].length; personaIndex++ ) { %>
+                <% let val = personas[0][personaIndex].ValorDocumentoIdentidad %>
+                <option value= <%= val %> >
+                    <%= personas[0][personaIndex].ValorDocumentoIdentidad %>
+                </option>
+            <% } %>
+        </select>
+    </div>
+
+    <div>
+        <label for="my-input">#Finca</label>
+        <select select  class="form-control" name="numFinca">
+            <% for( let propIndex = 0; propIndex < properties[0].length; propIndex++ ) { %>
+                <% let val = properties[0][propIndex].NumeroFinca %>
+                <option value= <%= val %> >
+                    <%= properties[0][propIndex].NumeroFinca %>
+                </option>
+            <% } %>
+        </select>
+    </div>
+    <br>
+
+    <div class="form-group">
+        <label for="my-input">Nueva fecha de inicio</label>
+        <input id="my-input" class="form-control" type="date" name="newDate">
+    </div>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Actualizar</button>
+</form>
+<br>
+<br>
+
+<h2>Terminar asociación</h2>
+<form method="post" action="/admin/deleteAsoPP">
+
+    <div>
+        <label for="my-input">#Identificación persona</label>
+        <select select  class="form-control" name="docVal">
+            <% for( let personaIndex = 0; personaIndex < personas[0].length; personaIndex++ ) { %>
+                <% let val = personas[0][personaIndex].ValorDocumentoIdentidad %>
+                <option value= <%= val %> >
+                    <%= personas[0][personaIndex].ValorDocumentoIdentidad %>
+                </option>
+            <% } %>
+        </select>
+    </div>
+
+    <div>
+        <label for="my-input">#Finca</label>
+        <select select  class="form-control" name="numFinca">
+            <% for( let propIndex = 0; propIndex < properties[0].length; propIndex++ ) { %>
+                <% let val = properties[0][propIndex].NumeroFinca %>
+                <option value= <%= val %> >
+                    <%= properties[0][propIndex].NumeroFinca %>
+                </option>
+            <% } %>
+        </select>
+    </div>
+    <br>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Terminar</button>
+</form>
+<br>
+<br>
+
+<table class="table table-dark">
+    <thead class="thead-dark">
+      <tr>
+        <th>#ID</th>
+        <th>#Identificación Persona</th>
+        <th>#Finca</th>
+        <th>Fecha inicio</th>
+        <th>Fecha fin</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for( let asosIndex = 0; asosIndex < asosPP[0].length; asosIndex++ ) { %>
+        <tr>
+          <td> <%= asosPP[0][asosIndex].Id %>  </td>
+          <td> <%= asosPP[0][asosIndex].IdentificacionPersona %>  </td>
+          <td> <%= asosPP[0][asosIndex].NumeroFinca %>  </td>
+          <td> <%= asosPP[0][asosIndex].FechaInicio %>  </td>
+          <td> <%= asosPP[0][asosIndex].FechaFin %>  </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+
+<%- include ../layouts/foot.ejs %>

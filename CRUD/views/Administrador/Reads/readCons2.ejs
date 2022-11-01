@@ -1,0 +1,32 @@
+<%- include ../../layouts/header.ejs %>
+<br>
+<br>
+<div>
+    <a href="/admin/consultas" class="btn btn-info" type="button">Regresar</a>
+</div>
+<br>
+<table class="table table-dark">
+    <thead class="thead-dark">
+      <tr>
+        <th>#Documento identidad</th>
+        <th>Nombre</th>
+        <th>#Activo</th>
+        <th>Fecha inicio</th>
+        <th>Fecha fin</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for( let personaIndex = 0; personaIndex < personas[0].length; personaIndex++ ) { %>
+        <tr>
+          <td> <%= personas[0][personaIndex].ValorDocumentoIdentidad %>  </td>
+          <td> <%= personas[0][personaIndex].Nombre %>  </td>
+          <td> <%= personas[0][personaIndex].Activo %> </td>
+          <td> <%= personas[0][personaIndex].FechaInicio %>  </td>
+          <td> <%= personas[0][personaIndex].FechaFin %>  </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+
+
+<%- include ../../layouts/foot.ejs %>

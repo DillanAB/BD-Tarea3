@@ -1,0 +1,169 @@
+<%- include ../layouts/header.ejs %>
+<h1>Propiedades</h1>
+<br>
+<div>
+    <a href="/admin" class="btn btn-primary" type="button">Regresar</a>
+</div>
+<br>
+<h2>Agregar nueva propiedad</h2>
+<form method="post" action="/admin/createProperty">
+    <div class="form-group">
+        <label for="my-input">Número de finca</label>
+        <input id="my-input" class="form-control" type="text" name="fincaNum">
+    </div>
+
+    <div>
+        <label for="my-input">Tipo de uso</label>
+        <select select  class="form-control" name="idUse">
+            <% for( let useIndex = 0; useIndex < uses[0].length; useIndex++ ) { %>
+                <% let val = uses[0][useIndex].Nombre %>
+                <% val = val.replace(" ", "-") %>
+                <option value= <%= val %> >
+                    <%= uses[0][useIndex].Nombre %>
+                </option>
+            <% } %>
+        </select>
+    </div>
+    <div>
+        <label for="my-input">Tipo de zona</label>
+        <select select  class="form-control" name="idZone">
+            <% for( let zoneIndex = 0; zoneIndex < zones[0].length; zoneIndex++ ) { %>
+                <% let val = zones[0][zoneIndex].Nombre %>
+                <% val = val.replace(" ", "-") %>
+                <option value= <%= val %> >
+                    <%= zones[0][zoneIndex].Nombre %>
+                </option>
+            <% } %>
+        </select>
+    </div>
+    <div>
+        <label for="my-input">Área en metros cuadrados</label>
+        <input id="my-input" class="form-control" type="text" name="area">
+    </div>
+    <div class="form-group">
+        <label for="my-input">Valor fiscal</label>
+        <input id="my-input" class="form-control" type="text" name="fiscalValue">
+    </div>
+    <div class="form-group">
+        <label for="my-input">Número de medidor</label>
+        <input id="my-input" class="form-control" type="text" name="medNum">
+    </div>
+    <div class="form-group">
+        <label for="my-input">Fecha de registro</label>
+        <input id="my-input" class="form-control" type="date" name="dateVal">
+    </div>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Agregar</button>
+</form>
+<br>
+<br>
+
+
+<h2>Actualizar datos de propiedad</h2>
+<h4>Rellenar campos a actualizar</h4>
+<form method="post" action="/admin/updateProperty">
+    <div>
+        <label for="my-input">Número de finca</label>
+        <input id="my-input" class="form-control" type="text" name="fincNum" >
+    </div>
+    <div>
+        <label for="my-input">Nuevo tipo de uso</label>
+        <select select  class="form-control" name="newUse">
+            <option value="">No cambiar</option>
+            <% for( let useIndex = 0; useIndex < uses[0].length; useIndex++ ) { %>
+                <% let val = uses[0][useIndex].Nombre %>
+                <% val = val.replace(" ", "-") %>
+                <option value= <%= val %> >
+                    <%= uses[0][useIndex].Nombre %>
+                </option>
+            <% } %>
+        </select>
+    </div>
+    <div>
+        <label for="my-input">Nuevo tipo de zona</label>
+        <select select  class="form-control" name="newZone">
+            <option value="">No cambiar</option>
+            <% for( let zoneIndex = 0; zoneIndex < zones[0].length; zoneIndex++ ) { %>
+                <% let val = zones[0][zoneIndex].Nombre %>
+                <% val = val.replace(" ", "-") %>
+                <option value= <%= val %> >
+                    <%= zones[0][zoneIndex].Nombre %>
+                </option>
+            <% } %>
+        </select>
+    </div>
+    <div>
+        <label for="my-input">Nueva área en metros cuadrados</label>
+        <input id="my-input" class="form-control" type="text" name="newArea" >
+    </div>
+    <div class="form-group">
+        <label for="my-input">Nuevo valor fiscal</label>
+        <input id="my-input" class="form-control" type="text" name="newFiscalValue" >
+    </div>
+    <div class="form-group">
+        <label for="my-input">Nuevo número de medidor</label>
+        <input id="my-input" class="form-control" type="text" name="newMedNum">
+    </div>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Actualizar</button>
+</form>
+<br>
+<br>
+
+<h2>Buscar propiedad</h2>
+<form method="post" action="/admin/searchProperty">
+    <div>
+        <label for="my-input">Número de finca</label>
+        <input id="my-input" class="form-control" type="text" name="fincNum" >
+    </div>
+    <br>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Buscar</button>
+</form>
+<br>
+<br>
+
+<h2>Desactivar Propiedad</h2>
+<form method="post" action="/admin/deleteProperty">
+    <div>
+        <label for="my-input">Número de finca</label>
+        <input id="my-input" class="form-control" type="text" name="fincNum" >
+    </div>
+    <br>
+    <button class="btn btn-danger" type="reset">Cancelar</button>
+    <button class="btn btn-primary" type="submit">Desactivar</button>
+</form>
+<br>
+<br>
+
+<table class="table table-dark">
+    <thead class="thead-dark">
+      <tr>
+        <th>#ID</th>
+        <th>#Finca</th>
+        <th>Tipo de uso</th>
+        <th>Tipo de zona</th>
+        <th>Área</th>
+        <th>Valor fiscal</th>
+        <th>#Medidor</th>
+        <th>Fecha de registro</th>
+        <th>Activo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for( let propertyIndex = 0; propertyIndex < properties[0].length; propertyIndex++ ) { %>
+        <tr>
+          <td> <%= properties[0][propertyIndex].Id %>  </td>
+          <td> <%= properties[0][propertyIndex].NumeroFinca %>  </td>
+          <td> <%= properties[0][propertyIndex].TipoUso %>  </td>
+          <td> <%= properties[0][propertyIndex].TipoZona %> </td>
+          <td> <%= properties[0][propertyIndex].Area %>  </td>
+          <td> <%= properties[0][propertyIndex].ValorFiscal %>  </td>
+          <td> <%= properties[0][propertyIndex].NumeroMedidor %>  </td>
+          <td> <%= properties[0][propertyIndex].FechaRegistro %>  </td>
+          <td> <%= properties[0][propertyIndex].Activo %>  </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+<%- include ../layouts/foot.ejs %>
