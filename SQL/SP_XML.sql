@@ -42,6 +42,15 @@ CREATE TYPE dbo.TAsoUP AS TABLE (
 	PRIMARY KEY CLUSTERED (Id ASC));
 GO
 
+CREATE TYPE dbo.TLectura AS TABLE (
+	Id INT IDENTITY (1,1) NOT NULL,
+	SEC INT NOT NULL,
+	NumeroMedidor INT NOT NULL,
+	TipoMovimiento VARCHAR(32) NOT NULL,
+	Valor INT NOT NULL
+	PRIMARY KEY CLUSTERED (Id ASC));
+GO
+
 CREATE PROCEDURE dbo.PropiedadXML
 	@InTablaProp dbo.TProp READONLY,
 	@inPropIndex INT,
@@ -154,6 +163,19 @@ BEGIN
 					dbo.ConceptoCobro AS CC
 				WHERE P.NumeroFinca = @NumFinca
 					AND CC.Nombre = 'ConsumoAgua';
+				
+				--Inserta en PropiedadCCAgua
+				INSERT INTO dbo.PropiedadCCAgua (
+					IdPropiedadXCC,
+					NumeroMedidor,
+					SaldoAcumulado)
+				SELECT PC.Id,
+					P.NumeroMedidor,
+					0
+				FROM dbo.PropiedadXConceptoCobro AS PC
+					INNER JOIN dbo.Propiedad AS P ON P.Id = PC.IdPropiedad
+				WHERE P.NumeroFinca = @NumFinca
+					AND PC.IdConceptoCobro = 1;
 
 			COMMIT TRANSACTION tPropiedadXCCXML
 		END; --Fin del IF para insertar sólo si el número de finca no está repetido
@@ -449,4 +471,82 @@ BEGIN
 	END CATCH
 	SET NOCOUNT OFF;
 END;
+GO
+
+CREATE PROCEDURE dbo.LecturasXML
+	@InTablaLectura TLectura READONLY,
+	@inDate DATE,
+	@outResultCode INT OUTPUT,
+	@outResultMessage VARCHAR(64) OUTPUT
+AS
+BEGIN
+	SET NOCOUNT ON;
+	SET @outResultCode = 0;
+	SET @outResultMessage = 'Operación exitosa';
+
+	DECLARE @MovTemp TABLE (
+		Id INT PRIMARY KEY IDENTITY,
+		NumeroMedidor INT,
+		IdTipoMov INT,
+		Valor INT,
+		IdPropiedad INT,
+		SaldoAnterior INT);
+
+	INSERT @MovTemp(
+		NumeroMedidor,
+		IdTipoMov,
+		Valor,
+		IdPropiedad,
+		SaldoAnterior)
+	SELECT L.NumeroMedidor,
+		CASE
+			WHEN L.TipoMovimiento = 'Lectura' THEN 1
+			WHEN L.TipoMovimiento = 'Ajuste Credito' THEN 2
+			WHEN L.TipoMovimiento = 'Ajuste Debito' THEN 3
+		END,
+		CASE
+			WHEN L.TipoMovimiento = 'Lectura' THEN L.Valor - A.SaldoAcumulado
+			WHEN L.TipoMovimiento = 'Ajuste Credito' THEN L.Valor
+			WHEN L.TipoMovimiento = 'Ajuste Debito' THEN L.Valor*-1
+		END,
+		P.Id,
+		A.SaldoAcumulado
+	FROM @InTablaLectura AS L
+	INNER JOIN dbo.PropiedadCCAgua AS A ON A.NumeroMedidor = L.NumeroMedidor
+	INNER JOIN dbo.PropiedadXConceptoCobro AS PC ON PC.Id = A.IdPropiedadXCC
+	INNER JOIN dbo.Propiedad AS P ON P.NumeroMedidor = L.NumeroMedidor;
+
+	INSERT INTO dbo.MovimientoConsumo(
+		IdPropiedadCCAgua,
+		IdTipoMovConsumo,
+		Monto,
+		NuevoSaldo)
+	SELECT PC.Id,
+		M.IdTipoMov,
+		M.Valor,
+		M.SaldoAnterior+M.Valor
+	FROM @MovTemp AS M
+		INNER JOIN dbo.PropiedadXConceptoCobro AS PC ON PC.IdPropiedad = M.IdPropiedad
+	WHERE PC.IdConceptoCobro = 1;
+
+	UPDATE dbo.PropiedadCCAgua
+	SET SaldoAcumulado = M.SaldoAnterior+M.Valor
+	FROM dbo.PropiedadCCAgua AS A
+	INNER JOIN @MovTemp AS M ON M.NumeroMedidor = A.NumeroMedidor;
+
+	SET NOCOUNT OFF;
+END
+GO
+
+CREATE PROCEDURE dbo.GenerarFacturas
+	@inDate DATE,
+	@outResultCode INT OUTPUT,
+	@outResultMessage VARCHAR(64) OUTPUT
+AS
+BEGIN
+	SET NOCOUNT ON;
+	SET @outResultCode = 0;
+	SET @outResultMessage = 'Operación exitosa';
+
+END
 GO

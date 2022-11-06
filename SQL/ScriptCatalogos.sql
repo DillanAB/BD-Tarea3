@@ -2,10 +2,6 @@ USE [Servicios]
 --Borra datos de las tablas
 DELETE dbo.UsuarioXPropiedad;
 DELETE dbo.PersonaXPropiedad;
-DELETE dbo.PropiedadXConceptoCobro;
-DELETE dbo.Usuario;
-DELETE dbo.Persona;
-DELETE dbo.Propiedad;
 DELETE dbo.CCAgua;
 DELETE dbo.CCImpuestoPropiedad;
 DELETE dbo.CCRecoleccionBasura;
@@ -13,11 +9,21 @@ DELETE dbo.CCPatenteComercial;
 DELETE dbo.CCReconexion;
 DELETE dbo.CCInteresesMoratorios;
 DELETE dbo.CCMantenimientoParques;
+DELETE dbo.PropiedadXConceptoCobro;
 DELETE dbo.ConceptoCobro;
+DELETE dbo.MovimientoConsumo;
+DELETE dbo.PropiedadCCAgua;
+DELETE dbo.DetalleCC;
+DELETE dbo.Factura;
+DELETE dbo.Usuario;
+DELETE dbo.Persona;
+DELETE dbo.Propiedad;
+
+DELETE dbo.EstadoFactura
 DELETE dbo.TipoDocumentoIdentidad;
 DELETE dbo.TipoUsoPropiedad;
 DELETE dbo.TipoZonaPropiedad;
-DELETE dbo.TipoMovLecturaMedidor;
+DELETE dbo.TipoMovConsumo;
 DELETE dbo.ParametroSistemaINT;
 DELETE dbo.ParametroSistema;
 DELETE dbo.TipoParametro
@@ -26,7 +32,7 @@ DELETE dbo.TipoMedioPago;
 DELETE dbo.TipoMontoCC;
 
 DECLARE @RutaXML NVARCHAR(512);
-SET @RutaXML = 'D:\TEC\Semestre 6\Bases de datos\BD-Tarea2\SQL\Catalogos.xml'; --Direcci�n del XML.
+SET @RutaXML = 'D:\TEC\Semestre 6\Bases de datos\BD-Tarea3\SQL\Catalogos.xml'; --Direcci�n del XML.
 
 DECLARE @Datos XML;
 DECLARE @hdoc INT;
@@ -40,7 +46,7 @@ EXECUTE sp_xml_preparedocument @hdoc OUTPUT, @Datos;
 
 
 --Inserta a la tabla TipoMovLecturaMedidor
-INSERT INTO dbo.TipoMovLecturaMedidor
+INSERT INTO dbo.TipoMovConsumo
 		(Id
 		,Nombre)
 	SELECT id,
@@ -141,6 +147,16 @@ SELECT id,
 FROM OPENXML (@hdoc, '/Catalogo/ParametrosSistema/ParametroSistema', 1)
 WITH (id INT,
 	Valor INT);
+
+--Agrega los estados de factura
+INSERT INTO dbo.EstadoFactura (
+ Id,
+ Nombre)
+SELECT id,
+	EstadoFactura
+FROM OPENXML (@hdoc, '/Catalogo/EstadoDeFacturas/EstadoFactura', 1)
+WITH (id INT,
+	EstadoFactura VARCHAR(64));
 
 --Se crea una tabla temporal para los Conceptos de cobro
 DECLARE @TempCC TABLE(
