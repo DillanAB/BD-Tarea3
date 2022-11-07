@@ -74,7 +74,7 @@
     <ParametroSistema id="2" Nombre = "Cantidad de dias para calculo de fecha de vencimiento" NombreTipoPar="int" Valor = "8"/>
   </ParametrosSistema>
   <CCs>
-    <CC id="1" Nombre="ConsumoAgua" TipoMontoCC ="2" PeriodoMontoCC ="1" ValorMinimo="300" ValorMinimoM3="30" Valorm3="" ValorPorcentual ="" ValorFijo="" ValorM2Minimo="" ValorTractosM2="" ValorFijoM3Adicional="100"/>
+    <CC id="1" Nombre="ConsumoAgua" TipoMontoCC ="2" PeriodoMontoCC ="1" ValorMinimo="5000" ValorMinimoM3="30" Valorm3="300" ValorPorcentual ="" ValorFijo="" ValorM2Minimo="" ValorTractosM2="" ValorFijoM3Adicional="100"/>
     <CC id="2" Nombre="Impuesto a propiedad" TipoMontoCC ="3" PeriodoMontoCC ="4" ValorMinimo="" ValorMinimoM3="" Valorm3="" ValorPorcentual="0.01" ValorFijo="" ValorM2Minimo="" ValorTractosM2="" ValorFijoM3Adicional=""/>
     <CC id="3" Nombre="Recoleccion Basura" TipoMontoCC ="2" PeriodoMontoCC ="1" ValorMinimo="150" ValorMinimoM3="" Valorm3="" ValorPorcentual="" ValorFijo="300" ValorM2Minimo="400" ValorTractosM2="200" ValorFijoM3Adicional=""/>
     <CC id="4" Nombre="Patente Comercial" TipoMontoCC ="1" PeriodoMontoCC ="3" ValorMinimo="" ValorMinimoM3="" Valorm3="" ValorPorcentual="" ValorFijo="150000" ValorM2Minimo="" ValorTractosM2="" ValorFijoM3Adicional=""/>

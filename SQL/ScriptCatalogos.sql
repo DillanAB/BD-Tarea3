@@ -9,10 +9,10 @@ DELETE dbo.CCPatenteComercial;
 DELETE dbo.CCReconexion;
 DELETE dbo.CCInteresesMoratorios;
 DELETE dbo.CCMantenimientoParques;
+DELETE dbo.PropiedadCCAgua;
 DELETE dbo.PropiedadXConceptoCobro;
 DELETE dbo.ConceptoCobro;
 DELETE dbo.MovimientoConsumo;
-DELETE dbo.PropiedadCCAgua;
 DELETE dbo.DetalleCC;
 DELETE dbo.Factura;
 DELETE dbo.Usuario;
@@ -236,10 +236,12 @@ BEGIN
 			(IdCC,
 			MontoMinimo,
 			MinimoM3,
+			ValorM3,
 			ValorFijoM3Adicional)
 		SELECT T.Id,
 			T.ValorMinimo,
 			T.ValorMinimoM3,
+			T.Valorm3,
 			T.ValorFijoM3Adicional
 		FROM @TempCC T
 		WHERE T.Id = @CCIndex;

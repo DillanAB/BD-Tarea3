@@ -484,56 +484,76 @@ BEGIN
 	SET @outResultCode = 0;
 	SET @outResultMessage = 'Operación exitosa';
 
-	DECLARE @MovTemp TABLE (
-		Id INT PRIMARY KEY IDENTITY,
-		NumeroMedidor INT,
-		IdTipoMov INT,
-		Valor INT,
-		IdPropiedad INT,
-		SaldoAnterior INT);
+	BEGIN TRY
+		DECLARE @MovTemp TABLE (
+			Id INT PRIMARY KEY IDENTITY,
+			NumeroMedidor INT,
+			IdTipoMov INT,
+			Valor INT,
+			IdPropiedad INT,
+			SaldoAnterior INT);
 
-	INSERT @MovTemp(
-		NumeroMedidor,
-		IdTipoMov,
-		Valor,
-		IdPropiedad,
-		SaldoAnterior)
-	SELECT L.NumeroMedidor,
-		CASE
-			WHEN L.TipoMovimiento = 'Lectura' THEN 1
-			WHEN L.TipoMovimiento = 'Ajuste Credito' THEN 2
-			WHEN L.TipoMovimiento = 'Ajuste Debito' THEN 3
-		END,
-		CASE
-			WHEN L.TipoMovimiento = 'Lectura' THEN L.Valor - A.SaldoAcumulado
-			WHEN L.TipoMovimiento = 'Ajuste Credito' THEN L.Valor
-			WHEN L.TipoMovimiento = 'Ajuste Debito' THEN L.Valor*-1
-		END,
-		P.Id,
-		A.SaldoAcumulado
-	FROM @InTablaLectura AS L
-	INNER JOIN dbo.PropiedadCCAgua AS A ON A.NumeroMedidor = L.NumeroMedidor
-	INNER JOIN dbo.PropiedadXConceptoCobro AS PC ON PC.Id = A.IdPropiedadXCC
-	INNER JOIN dbo.Propiedad AS P ON P.NumeroMedidor = L.NumeroMedidor;
+		INSERT @MovTemp(
+			NumeroMedidor,
+			IdTipoMov,
+			Valor,
+			IdPropiedad,
+			SaldoAnterior)
+		SELECT L.NumeroMedidor,
+			CASE
+				WHEN L.TipoMovimiento = 'Lectura' THEN 1
+				WHEN L.TipoMovimiento = 'Ajuste Credito' THEN 2
+				WHEN L.TipoMovimiento = 'Ajuste Debito' THEN 3
+			END,
+			CASE
+				WHEN L.TipoMovimiento = 'Lectura' THEN L.Valor - A.SaldoAcumulado
+				WHEN L.TipoMovimiento = 'Ajuste Credito' THEN L.Valor
+				WHEN L.TipoMovimiento = 'Ajuste Debito' THEN L.Valor*-1
+			END,
+			P.Id,
+			A.SaldoAcumulado
+		FROM @InTablaLectura AS L
+		INNER JOIN dbo.PropiedadCCAgua AS A ON A.NumeroMedidor = L.NumeroMedidor
+		INNER JOIN dbo.PropiedadXConceptoCobro AS PC ON PC.Id = A.IdPropiedadXCC
+		INNER JOIN dbo.Propiedad AS P ON P.NumeroMedidor = L.NumeroMedidor;
+		BEGIN TRANSACTION tLectura
+			INSERT INTO dbo.MovimientoConsumo(
+				IdPropiedadCCAgua,
+				IdTipoMovConsumo,
+				Monto,
+				NuevoSaldo)
+			SELECT PC.Id,
+				M.IdTipoMov,
+				M.Valor,
+				M.SaldoAnterior+M.Valor
+			FROM @MovTemp AS M
+				INNER JOIN dbo.PropiedadXConceptoCobro AS PC ON PC.IdPropiedad = M.IdPropiedad
+			WHERE PC.IdConceptoCobro = 1;
 
-	INSERT INTO dbo.MovimientoConsumo(
-		IdPropiedadCCAgua,
-		IdTipoMovConsumo,
-		Monto,
-		NuevoSaldo)
-	SELECT PC.Id,
-		M.IdTipoMov,
-		M.Valor,
-		M.SaldoAnterior+M.Valor
-	FROM @MovTemp AS M
-		INNER JOIN dbo.PropiedadXConceptoCobro AS PC ON PC.IdPropiedad = M.IdPropiedad
-	WHERE PC.IdConceptoCobro = 1;
-
-	UPDATE dbo.PropiedadCCAgua
-	SET SaldoAcumulado = M.SaldoAnterior+M.Valor
-	FROM dbo.PropiedadCCAgua AS A
-	INNER JOIN @MovTemp AS M ON M.NumeroMedidor = A.NumeroMedidor;
-
+			UPDATE dbo.PropiedadCCAgua
+			SET SaldoAcumulado = M.SaldoAnterior+M.Valor
+			FROM dbo.PropiedadCCAgua AS A
+			INNER JOIN @MovTemp AS M ON M.NumeroMedidor = A.NumeroMedidor;
+		COMMIT TRANSACTION tLectura
+	END TRY
+	BEGIN CATCH
+		IF @@TRANCOUNT>0 BEGIN
+		ROLLBACK tacreditaSoloUno;
+		END;
+		INSERT dbErrors		
+		VALUES (
+			SUSER_NAME(),
+			ERROR_NUMBER(),
+			ERROR_STATE(),
+			ERROR_SEVERITY(),
+			ERROR_LINE(),
+			ERROR_PROCEDURE(),
+			ERROR_MESSAGE(),
+			GETDATE()
+			);
+		SET @outResultCode = 50050;
+		SET @outResultMessage = 'Fallo del sistema'
+	END CATCH
 	SET NOCOUNT OFF;
 END
 GO
@@ -547,6 +567,169 @@ BEGIN
 	SET NOCOUNT ON;
 	SET @outResultCode = 0;
 	SET @outResultMessage = 'Operación exitosa';
+	BEGIN TRY
+		DECLARE @PropCCTemp TABLE(
+			Sec INT IDENTITY (1,1),
+			IdPropiedad INT,
+			IdCC INT,
+			M3Acumulados INT,
+			M3AcumuladosUltimoFactura INT,
+			FechaRegistro DATE);
+			SELECT * FROM CCAgua
+		INSERT INTO @PropCCTemp (
+			IdPropiedad,
+			IdCC,
+			M3Acumulados,
+			M3AcumuladosUltimoFactura,
+			FechaRegistro)
+		SELECT PC.IdPropiedad,
+			PC.IdConceptoCobro,
+			P.M3Acumulados,
+			P.M3AcumuladosUltimoFactura,
+			FechaRegistro
+		FROM dbo.PropiedadXConceptoCobro AS PC
+			INNER JOIN dbo.Propiedad AS P ON P.Id = PC.IdPropiedad;
+			
+		DECLARE @indexFinal INT = (SELECT MAX(Sec) FROM @PropCCTemp),
+			@propCCIndex INT = 1,
+			@idPropiedad INT,
+			@idCC INT,
+			@m3Acum INT,
+			@m3AcumFactAnt INT,
+			@valor INT,
+			@fechaRegistro DATE,
+			@numDiaOp INT = DAY(@inDate),
+			@numMesOp INT = MONTH(@inDate),
+			@numAñoOp INT = YEAR(@inDate),
+			@maxDia INT;
 
+		WHILE @indexFinal > @propCCIndex
+		BEGIN
+
+			SELECT @idPropiedad = PC.IdPropiedad,
+				@idCC = PC.IdCC,
+				@m3Acum = PC.M3Acumulados,
+				@m3AcumFactAnt = PC.M3AcumuladosUltimoFactura,
+				@fechaRegistro = PC.FechaRegistro
+			FROM @PropCCTemp AS PC
+			WHERE PC.Sec = @propCCIndex;
+
+			IF @idCC = 1 --Si es de ConsumoAgua
+			BEGIN
+				SELECT @valor =
+					CASE 
+						WHEN (@m3Acum-@m3AcumFactAnt)*A.ValorM3>A.MontoMinimo
+						THEN (@m3Acum - @m3AcumFactAnt)*A.ValorM3
+						ELSE A.MontoMinimo
+					END
+				FROM dbo.CCAgua AS A
+			END 
+
+			IF @idCC = 2 --Si es de Impuesto a propiedad
+			BEGIN
+				SELECT @valor = (P.ValorFiscal * I.ValorPorcentual)/12
+				FROM dbo.CCImpuestoPropiedad AS I,
+					dbo.Propiedad P
+				WHERE P.Id = @idPropiedad
+			END 
+
+			IF @idCC = 3 --Recoleccion Basura
+			BEGIN
+				SELECT @valor = 
+				CASE
+					WHEN P.Area <= R.ValorM2Minimo THEN R.ValorMinimo
+					ELSE R.ValorMinimo + 75*CAST(((P.Area - R.ValorM2Minimo)/R.ValorTractosM2) AS INT)
+				END
+				FROM dbo.CCRecoleccionBasura AS R,
+					dbo.Propiedad P
+				WHERE P.Id = @idPropiedad
+			END 
+
+			IF @idCC = 4 --Si es de Patente Comercial
+			BEGIN
+				SELECT @valor = C.ValorFijo/12
+				FROM dbo.CCPatenteComercial AS C,
+					dbo.Propiedad P
+				WHERE P.Id = @idPropiedad
+			END
+
+			IF @idCC = 5 --Si es de Reconexion
+			BEGIN
+				SELECT @valor = R.ValorFijo
+				FROM dbo.CCReconexion AS R,
+					dbo.Propiedad P
+				WHERE P.Id = @idPropiedad
+			END 
+
+			IF @idCC = 7 --Si es de MantenimientoParques
+			BEGIN
+				SELECT @valor = M.ValorFijo
+				FROM dbo.CCMantenimientoParques AS M,
+					dbo.Propiedad P
+				WHERE P.Id = @idPropiedad
+			END
+			
+			IF @numMesOp IN (1,3,5,7,8,10,12) --Meses de 31 días
+			BEGIN 
+				SET @maxDia = 31
+			END
+			IF @numMesOp IN (4,6,9,11) --Meses de 30 días 
+			BEGIN 
+				SET @maxDia = 30
+			END
+
+			IF @numMesOp = 2 --Caso especial para febrero
+			BEGIN 
+				IF (((@numAñoOp % 4) = 0 AND (@numAñoOp % 100) <> 0) OR (@numAñoOp % 400) = 0)
+				BEGIN
+					SET @maxDia = 29 --Si el año es biciesto, febrero tiene 29 días
+				END
+				ELSE
+				BEGIN
+					SET @maxDia = 28 --Si el año es biciesto, febrero tiene 28 días
+				END
+			END
+			
+			BEGIN TRANSACTION tFactProp
+
+				INSERT INTO dbo.Factura (
+					IdPropiedad,
+					IdEstado,
+					Fecha,
+					FechaVencimiento,
+					TotalOriginal,
+					TotalPagar)
+				SELECT @idPropiedad,
+					0,
+					CASE
+						WHEN DAY(@fechaRegistro) > @maxDia THEN @maxDia --Si el día de registro es mayor a los días del mes
+						ELSE @fechaRegistro
+					END
+				FROM @PropCCTemp AS P
+
+			COMMIT TRANSACTION tFactProp
+
+		END --Final WHILE
+
+	END TRY
+	BEGIN CATCH
+		IF @@TRANCOUNT>0 BEGIN
+		ROLLBACK tacreditaSoloUno;
+		END;
+		INSERT dbErrors		
+		VALUES (
+			SUSER_NAME(),
+			ERROR_NUMBER(),
+			ERROR_STATE(),
+			ERROR_SEVERITY(),
+			ERROR_LINE(),
+			ERROR_PROCEDURE(),
+			ERROR_MESSAGE(),
+			GETDATE()
+			);
+		SET @outResultCode = 50050;
+		SET @outResultMessage = 'Fallo del sistema'
+	END CATCH
+	SET NOCOUNT OFF;
 END
 GO

@@ -23,9 +23,8 @@ DBCC CHECKIDENT ('Propiedad', RESEED, 0);
 DBCC CHECKIDENT ('Usuario', RESEED, 0);
 DBCC CHECKIDENT ('Persona', RESEED, 0);
 
-
 DECLARE @RutaXML NVARCHAR(512);
-SET @RutaXML = 'D:\TEC\Semestre 6\Bases de datos\BD-Tarea2\SQL\Operaciones.xml'; --Dirección del XML.
+SET @RutaXML = 'D:\TEC\Semestre 6\Bases de datos\BD-Tarea3\SQL\Operaciones.xml'; --Dirección del XML.
 
 DECLARE @Datos XML;
 DECLARE @hdoc INT;
@@ -242,6 +241,3 @@ BEGIN
 	--Se incrementa iter
 	SET @iter = @iter + 1;
 END; --Fin del WHILE general
-
-
-
