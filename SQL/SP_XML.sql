@@ -51,6 +51,15 @@ CREATE TYPE dbo.TLectura AS TABLE (
 	PRIMARY KEY CLUSTERED (Id ASC));
 GO
 
+CREATE TYPE dbo.TPago AS TABLE (
+	Id INT IDENTITY (1,1) NOT NULL,
+	SEC INT NOT NULL,
+	NumeroFinca INT NOT NULL,
+	TipoPago VARCHAR(64) NOT NULL,
+	NumeroReferencia INT NOT NULL
+	PRIMARY KEY CLUSTERED (Id ASC));
+GO
+
 CREATE PROCEDURE dbo.PropiedadXML
 	@InTablaProp dbo.TProp READONLY,
 	@inPropIndex INT,
@@ -209,7 +218,7 @@ END;
 GO
 
 CREATE PROCEDURE dbo.AsoPPXML
-	@InTablaAsoPP TAsoPP READONLY,
+	@InTablaAsoPP dbo.TAsoPP READONLY,
 	@inAsoPPIndex INT,
 	@inDate DATE,
 	@outResultCode INT OUTPUT,
@@ -292,7 +301,7 @@ END;
 GO
 
 CREATE PROCEDURE dbo.UserXML
-	@InTablaUser TUser READONLY,
+	@InTablaUser dbo.TUser READONLY,
 	@inUserIndex INT,
 	@inDate DATE,
 	@outResultCode INT OUTPUT,
@@ -384,7 +393,7 @@ END;
 GO
 
 CREATE PROCEDURE dbo.AsoUPXML
-	@InTablaAsoUP TAsoUP READONLY,
+	@InTablaAsoUP dbo.TAsoUP READONLY,
 	@inAsoUPIndex INT,
 	@inDate DATE,
 	@outResultCode INT OUTPUT,
@@ -474,7 +483,7 @@ END;
 GO
 
 CREATE PROCEDURE dbo.LecturasXML
-	@InTablaLectura TLectura READONLY,
+	@InTablaLectura dbo.TLectura READONLY,
 	@inDate DATE,
 	@outResultCode INT OUTPUT,
 	@outResultMessage VARCHAR(64) OUTPUT
@@ -539,6 +548,186 @@ BEGIN
 	BEGIN CATCH
 		IF @@TRANCOUNT>0 BEGIN
 			ROLLBACK TRANSACTION tLectura;
+		END;
+		INSERT dbErrors		
+		VALUES (
+			SUSER_NAME(),
+			ERROR_NUMBER(),
+			ERROR_STATE(),
+			ERROR_SEVERITY(),
+			ERROR_LINE(),
+			ERROR_PROCEDURE(),
+			ERROR_MESSAGE(),
+			GETDATE()
+			);
+		SET @outResultCode = 50050;
+		SET @outResultMessage = 'Fallo del sistema'
+	END CATCH
+	SET NOCOUNT OFF;
+END
+GO
+
+CREATE PROCEDURE dbo.PagosXML
+	@InTablaPagos dbo.TPago READONLY,
+	@inDate DATE,
+	@outResultCode INT OUTPUT,
+	@outResultMessage VARCHAR(64) OUTPUT
+AS
+BEGIN
+	SET NOCOUNT ON;
+	SET @outResultCode = 0;
+	SET @outResultMessage = 'Operación exitosa';
+	BEGIN TRY
+		DECLARE @PagoTemp TABLE (
+			Sec INT PRIMARY KEY IDENTITY,
+			NumeroFinca INT,
+			IdFactura INT,
+			IdTipoPago INT,
+			NumeroReferencia INT,
+			MontoPago FLOAT,
+			NuevoEstadoFactura INT);
+
+		DECLARE @finalIndex INT,
+			@pagoIndex INT,
+			@numFinca INT,
+			@idFactura INT,
+			@idTipoPago INT,
+			@numReferencia INT,
+			@montoPago FLOAT,
+			@nuevoEstadoFact INT,
+			@IDEVENTPAGOS INT = 7,
+			@IdEventLogActual INT,
+			@LastIdIndex INT;
+
+		--Revisa si ha sido ejecutado en la fecha ingresada
+		IF EXISTS (SELECT 1 FROM dbo.EventLogProcesosMasivos E WHERE (E.IdEventType=@IDEVENTPAGOS) AND (E.EventDate=@inDate)
+					AND E.LastIdProcessed=E.LastIdToBeProcessed)
+		BEGIN
+			SET @outResultCode=50020     
+			SET @outResultMessage = 'Proceso ya ejecutado en la fecha';
+			RETURN;
+		END;
+
+		--Revisa si se inició y no terminó
+		IF EXISTS (SELECT 1 FROM dbo.EventLogProcesosMasivos E WHERE (E.IdEventType=@IDEVENTPAGOS) AND (E.EventDate=@inDate))
+		BEGIN
+			SELECT @LastIdIndex=E.LastIdToBeProcessed    -- Hay que iniciar el proceso despues del ultimo
+			, @IdEventLogActual= E.Id
+			FROM dbo.EventLogProcesosMasivos AS E
+			WHERE (E.IdEventType=@IDEVENTPAGOS) AND (E.EventDate=@inDate)
+		
+			SELECT @pagoIndex=P.Sec+1      -- la iteracion comienza despues del ultimo procesado
+			FROM @PagoTemp AS P 
+			WHERE P.Sec=@LastIdIndex
+		END
+		ELSE BEGIN
+			Set @pagoIndex=1;
+			INSERT dbo.EventLogProcesosMasivos (
+				IdEventType, 
+				EventDate, 
+				Description,
+				LastIdToBeProcessed,
+				LastIdProcessed)
+			VALUES (@IDEVENTPAGOS,
+				@inDate,
+				'Proceso masivo pagos',
+				@finalIndex, 0);
+	
+			SET @IdEventLogActual=SCOPE_IDENTITY();
+		END;
+
+		INSERT INTO @PagoTemp (
+			NumeroFinca,
+			IdFactura,
+			IdTipoPago,
+			NumeroReferencia,
+			MontoPago,
+			NuevoEstadoFactura)
+		SELECT TP.NumeroFinca,
+			F.Id,
+			CASE
+				WHEN TP.TipoPago = 'Efectivo' THEN 1
+				WHEN TP.TipoPago = 'Tarjeta de débito o crédito' THEN 2
+				WHEN TP.TipoPago = 'Transferencia bancaria' THEN 3
+				WHEN TP.TipoPago = 'Arreglo de Pago' THEN 4
+			END,
+			TP.NumeroReferencia,
+			F.TotalPagar,
+			CASE
+				WHEN TP.TipoPago = 'Arreglo de Pago' THEN 3 --Pagado por arreglo de pago
+				ELSE 2 --Pagado normal
+			END
+		FROM @InTablaPagos AS TP
+			INNER JOIN dbo.Propiedad AS P ON P.NumeroFinca = TP.NumeroFinca
+			INNER JOIN dbo.Factura AS F ON F.IdPropiedad = P.Id
+		WHERE F.IdEstado = 1 --Que la factura seleccionada siga sin pagarse
+			AND (F.Fecha = (SELECT MIN(F2.Fecha) 
+					FROM dbo.Factura F2 
+					WHERE F2.IdPropiedad = P.Id
+						AND F2.IdEstado = 1)); --Que la factura seleccionada por propiedad sea la más antigua sin pagar;
+
+		SET @finalIndex = (SELECT MAX(P.Sec) FROM @PagoTemp P)
+		WHILE @finalIndex > @pagoIndex
+		BEGIN
+			SELECT @numFinca = P.NumeroFinca,
+				@idFactura = P.IdFactura,
+				@idTipoPago = P.IdTipoPago,
+				@numReferencia = P.NumeroReferencia,
+				@montoPago = P.MontoPago,
+				@nuevoEstadoFact = P.NuevoEstadoFactura
+			FROM @PagoTemp AS P
+			WHERE P.Sec = @pagoIndex;
+
+			BEGIN TRANSACTION tPago
+				--Genera el comprobante de pago
+				INSERT INTO dbo.ComprobantePago (
+					IdTipoPago,
+					IdFactura,
+					NumeroReferencia,
+					MontoPago,
+					Fecha)
+				SELECT @idTipoPago,
+					@idFactura,
+					@numReferencia,
+					@montoPago,
+					@inDate;
+
+				--Actualiza el estado de factura
+				UPDATE dbo.Factura
+				SET IdEstado = @nuevoEstadoFact
+				WHERE Id = @idFactura;
+
+				--Si la factura generó una orden de corte, actualiza su estado y genera la orden de reconexión
+				IF EXISTS (SELECT 1 FROM dbo.OrdenCorteAgua O WHERE O.IdFactura = @idFactura)
+				BEGIN
+					--Actualiza el estado de orden de corte
+					UPDATE dbo.OrdenCorteAgua
+					SET Estado = 2,
+						IdComprobantePago = C.Id
+					FROM dbo.ComprobantePago AS C
+					WHERE C.NumeroReferencia = @numReferencia;
+					
+					--Generera la orden de reconexión
+					INSERT INTO dbo.OrdenReconexion (
+						IdOrdenCorte,
+						FechaReconexion)
+					SELECT OC.Id,
+						@inDate
+					FROM dbo.OrdenCorteAgua AS OC
+					WHERE OC.IdFactura = @idFactura;
+				END
+
+				UPdate dbo.EventLogProcesosMasivos 
+				SET LastIdProcessed=@pagoIndex
+				WHERE Id=@IdEventLogActual;
+
+			COMMIT TRANSACTION tPago
+			SET @pagoIndex = @pagoIndex + 1;
+		END --Fin del WHILE
+	END TRY
+	BEGIN CATCH
+		IF @@TRANCOUNT>0 BEGIN
+			ROLLBACK TRANSACTION tPago;
 		END;
 		INSERT dbErrors		
 		VALUES (

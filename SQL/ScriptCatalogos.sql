@@ -1,23 +1,22 @@
 USE [Servicios]
 --Borra datos de las tablas
-DELETE dbo.UsuarioXPropiedad;
-DELETE dbo.PersonaXPropiedad;
-DELETE dbo.CCAgua;
-DELETE dbo.CCImpuestoPropiedad;
-DELETE dbo.CCRecoleccionBasura;
-DELETE dbo.CCPatenteComercial;
-DELETE dbo.CCReconexion;
-DELETE dbo.CCInteresesMoratorios;
-DELETE dbo.CCMantenimientoParques;
+DELETE dbo.DBErrors;
+DELETE dbo.OrdenReconexion;
+DELETE dbo.ComprobantePago;
+DELETE dbo.OrdenCorteAgua;
+DELETE dbo.DetalleCCAgua;
+DELETE dbo.DetalleCC;
+DELETE dbo.MovimientoConsumo;
 DELETE dbo.PropiedadCCAgua;
 DELETE dbo.PropiedadXConceptoCobro;
-DELETE dbo.ConceptoCobro;
-DELETE dbo.MovimientoConsumo;
-DELETE dbo.DetalleCC;
-DELETE dbo.Factura;
+DElETE dbo.UsuarioXPropiedad;
+DELETE dbo.PersonaXPropiedad;
+DELETE dbo.PropiedadXConceptoCobro;
+
+DELETE dbo.Factura
+DELETE dbo.Propiedad;
 DELETE dbo.Usuario;
 DELETE dbo.Persona;
-DELETE dbo.Propiedad;
 
 DELETE dbo.EstadoFactura
 DELETE dbo.TipoDocumentoIdentidad;
@@ -27,8 +26,16 @@ DELETE dbo.TipoMovConsumo;
 DELETE dbo.ParametroSistemaINT;
 DELETE dbo.ParametroSistema;
 DELETE dbo.TipoParametro
+DELETE dbo.CCAgua;
+DELETE dbo.CCImpuestoPropiedad;
+DELETE dbo.CCRecoleccionBasura;
+DELETE dbo.CCPatenteComercial;
+DELETE dbo.CCReconexion;
+DELETE dbo.CCInteresesMoratorios;
+DELETE dbo.CCMantenimientoParques;
+DELETE dbo.ConceptoCobro
 DELETE dbo.PeriodoMontoCC;
-DELETE dbo.TipoMedioPago;
+DELETE dbo.TipoPago;
 DELETE dbo.TipoMontoCC;
 
 DECLARE @RutaXML NVARCHAR(512);
@@ -84,16 +91,17 @@ INSERT INTO dbo.TipoDocumentoIdentidad
 	FROM OPENXML (@hdoc, '/Catalogo/TipoDocumentoIdentidades/TipoDocumentoIdentidad', 1)
 	WITH (id INT
 		,Nombre VARCHAR(32));
-		
---Inserta a la tabla TipoMedioPago
-INSERT INTO dbo.TipoMedioPago
-		(Id
-		,Nombre)
-	SELECT id,
-		Nombre
-	FROM OPENXML (@hdoc, '/Catalogo/TipoMedioPagos/TipoMedioPago', 1)
-	WITH (id INT
-		,Nombre VARCHAR(32));
+
+--Inserta a la tabla TipoPago
+INSERT INTO dbo.TipoPago(
+	Id,
+	Nombre)
+SELECT id,
+	tipoPago
+FROM OPENXML (@hdoc, '/Catalogo/TipoDePagos/TipoDePago', 1)
+WITH (id INT,
+	tipoPago VARCHAR(64));
+	
 
 --Inserta a la tabla PeriodoMontoCC
 INSERT INTO dbo.PeriodoMontoCC

@@ -2,6 +2,9 @@ USE [Servicios]
 
 SET NOCOUNT ON;
 DELETE dbo.DBErrors;
+DELETE dbo.OrdenReconexion;
+DELETE dbo.ComprobantePago;
+DELETE dbo.OrdenCorteAgua;
 DELETE dbo.DetalleCCAgua;
 DELETE dbo.DetalleCC;
 DELETE dbo.MovimientoConsumo;
@@ -16,6 +19,9 @@ DELETE dbo.Propiedad;
 DELETE dbo.Usuario;
 DELETE dbo.Persona;
 
+DBCC CHECKIDENT ('OrdenReconexion', RESEED, 0);
+DBCC CHECKIDENT ('ComprobantePago', RESEED, 0);
+DBCC CHECKIDENT ('OrdenCorteAgua', RESEED, 0);
 DBCC CHECKIDENT ('DetalleCC', RESEED, 0);
 DBCC CHECKIDENT ('PropiedadXConceptoCobro', RESEED, 0);
 DBCC CHECKIDENT ('MovimientoConsumo', RESEED, 0);
@@ -51,6 +57,7 @@ DECLARE @nodoPropiedad NVARCHAR(512);
 DECLARE @nodoAsoPP NVARCHAR(512);
 DECLARE @nodoAsoUP NVARCHAR(512);
 DECLARE @nodoLectura NVARCHAR(512);
+DECLARE @nodoPago NVARCHAR(512);
 --Crea una tabla temporal para guardar las fechas de operación
 DECLARE @DateTemp TABLE (
 		Id INT PRIMARY KEY IDENTITY,
@@ -73,6 +80,7 @@ BEGIN
 	SET @nodoAsoPP = '/Datos/Operacion[' + CAST(@iter AS VARCHAR(8)) + ']/PersonasyPropiedades/PropiedadPersona';
 	SET @nodoAsoUP = '/Datos/Operacion[' + CAST(@iter AS VARCHAR(8)) + ']/PropiedadesyUsuarios/UsuarioPropiedad';
 	SET @nodoLectura = '/Datos/Operacion[' + CAST(@iter AS VARCHAR(8)) + ']/Lecturas/LecturaMedidor';
+	SET @nodoPago = '/Datos/Operacion[' + CAST(@iter AS VARCHAR(8)) + ']/Pago/Pago';
 	SET @Date = (SELECT Fecha FROM @DateTemp WHERE Id = @iter);
 
 	--Declara las variables tablas
@@ -81,6 +89,7 @@ BEGIN
 	DECLARE @UserTemp AS dbo.TUser;
 	DECLARE @AsoUPTemp AS dbo.TAsoUP;
 	DECLARE @LecturaTemp AS dbo.TLectura;
+	DECLARE @PagoTemp AS dbo.TPago;
 
 	--Inserta en las avariables tablas
 	INSERT INTO @PropiedadTemp(
@@ -168,6 +177,20 @@ BEGIN
 		TipoMovimiento VARCHAR(32),
 		Valor INT) AS L;
 
+	INSERT INTO @PagoTemp (
+		SEC,
+		NumeroFinca,
+		TipoPago,
+		NumeroReferencia)
+	SELECT Row_Number() OVER ( ORDER BY P.NumFinca),
+		P.NumFinca,
+		P.TipoPago,
+		P.NumeroReferenciaComprobantePago
+	FROM OPENXML (@hdoc, @nodoPago, 1)
+	WITH (NumFinca INT,
+		TipoPago VARCHAR(64),
+		NumeroReferenciaComprobantePago INT) AS P;
+
 
 	--Declara las variables para controlar los while
 	DECLARE @PropertyFinalIndex INT = (SELECT MAX(SEC) FROM @PropiedadTemp);
@@ -178,8 +201,6 @@ BEGIN
 	DECLARE @UserIndex INT = 1;
 	DECLARE @AsoUPFinalIndex INT = (SELECT MAX(Id) FROM @AsoUPTemp);
 	DECLARE @AsoUPIndex INT = 1;
-	--DECLARE @LecturaFinalIndex INT = (SELECT MAX(SEC) FROM @LecturaTemp);
-	--DECLARE @LecturaIndex INT = 1;
 
 	--Procesar nuevas personas
 	INSERT INTO dbo.Persona(
@@ -235,6 +256,9 @@ BEGIN
 	--Procesar lecturas
 	EXEC dbo.LecturasXML @LecturaTemp, @Date, @ResultCode OUTPUT, @ResultMessage OUTPUT;
 
+	--Procesar pagos
+	EXEC dbo.PagosXML @PagoTemp, @Date, @ResultCode OUTPUT, @ResultMessage OUTPUT;
+
 	--Generar facturas
 	EXEC dbo.GenerarFacturas @Date, @ResultCode OUTPUT, @ResultMessage OUTPUT;
 
@@ -249,7 +273,13 @@ BEGIN
 	DELETE @AsoPPTemp;
 	DELETE @UserTemp;
 	DELETE @AsoUPTemp;
-	DELETE @LecturaTemp
+	DELETE @LecturaTemp;
+	DELETE @PagoTemp;
 	--Se incrementa iter
 	SET @iter = @iter + 1;
 END; --Fin del WHILE general
+
+select * from OrdenCorteAgua
+select * from OrdenReconexion
+select * from ComprobantePago C where C.IdFactura = 441
+select * from Factura
