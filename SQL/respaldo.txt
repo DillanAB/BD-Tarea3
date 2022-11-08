@@ -1,0 +1,79 @@
+		IF @numMesOp IN (1,3,5,7,8,10,12) --Meses de 31 días
+		BEGIN 
+			SET @maxDia = 31
+		END
+		IF @numMesOp IN (4,6,9,11) --Meses de 30 días 
+		BEGIN 
+			SET @maxDia = 30
+		END
+
+		IF @numMesOp = 2 --Caso especial para febrero
+		BEGIN 
+			IF (((@numAñoOp % 4) = 0 AND (@numAñoOp % 100) <> 0) OR (@numAñoOp % 400) = 0)
+			BEGIN
+				SET @maxDia = 29 --Si el año es biciesto, febrero tiene 29 días
+			END
+			ELSE
+			BEGIN
+				SET @maxDia = 28 --Si el año es biciesto, febrero tiene 28 días
+			END
+		END
+
+
+
+
+
+
+				INSERT INTO @OrdenTemp(
+			IdFactura,
+			IdPropiedad)
+		SELECT DISTINCT  F.Id,
+			P.Id
+		FROM dbo.Propiedad AS P
+			INNER JOIN dbo.PropiedadXConceptoCobro AS PC ON PC.IdPropiedad = P.Id
+			INNER JOIN dbo.Factura AS F ON F.IdPropiedad = P.Id
+		WHERE PC.IdConceptoCobro = 1
+			AND F.IdEstado = 1
+			AND NOT EXISTS (SELECT 1 FROM dbo.OrdenCorteAgua O WHERE O.IdFactura = F.Id)
+
+
+
+
+			DECLARE @finalIndex INT = (SELECT MAX(Sec) FROM @OrdenTemp),
+			@ordenIndex INT = 1,
+			@idFactura INT,
+			@idPropiedad INT,
+			@numFacturas INT;
+
+		WHILE @finalIndex > @ordenIndex
+		BEGIN 
+			SELECT @idFactura = O.IdFactura,
+				@idPropiedad = O.IdPropiedad
+			FROM @OrdenTemp AS O
+			WHERE O.Sec = @ordenIndex;
+
+			IF 1 < (SELECT COUNT(F.Id) FROM dbo.Factura F WHERE F.IdEstado = 1 AND F.IdPropiedad = @idPropiedad)
+			BEGIN
+				BEGIN TRANSACTION tOrdenes
+					INSERT INTO dbo.OrdenCorteAgua (
+						IdFactura,
+						FechaCorte)
+					SELECT  @idFactura,
+						@inDate;
+
+					INSERT INTO dbo.DetalleCC (
+						IdFactura,
+						IdConceptoCobro,
+						Monto)
+					SELECT @idFactura,
+						@idCCReconexion,
+						@monto;
+
+					UPDATE dbo.Factura
+					SET TotalPagar = TotalPagar + @monto
+					WHERE Id = @idFactura;
+
+				COMMIT TRANSACTION tOrdenes
+			END
+			SET @ordenIndex = @ordenIndex + 1;
+		END; --Fin del WHILE

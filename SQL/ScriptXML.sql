@@ -2,23 +2,27 @@ USE [Servicios]
 
 SET NOCOUNT ON;
 DELETE dbo.DBErrors;
-DELETE dbo.MovimientoConsumo
+DELETE dbo.DetalleCCAgua;
+DELETE dbo.DetalleCC;
+DELETE dbo.MovimientoConsumo;
 DELETE dbo.PropiedadCCAgua;
+DELETE dbo.PropiedadXConceptoCobro;
 DElETE dbo.UsuarioXPropiedad;
 DELETE dbo.PersonaXPropiedad;
 DELETE dbo.PropiedadXConceptoCobro;
 
-DELETE dbo.UsuarioXPropiedad;
-DELETE dbo.PersonaXPropiedad
-DELETE dbo.PropiedadXConceptoCobro
+DELETE dbo.Factura
 DELETE dbo.Propiedad;
 DELETE dbo.Usuario;
 DELETE dbo.Persona;
 
+DBCC CHECKIDENT ('DetalleCC', RESEED, 0);
+DBCC CHECKIDENT ('PropiedadXConceptoCobro', RESEED, 0);
+DBCC CHECKIDENT ('MovimientoConsumo', RESEED, 0);
 DBCC CHECKIDENT ('UsuarioXPropiedad', RESEED, 0);
 DBCC CHECKIDENT ('PersonaXPropiedad', RESEED, 0);
-DBCC CHECKIDENT ('MovimientoConsumo', RESEED, 0);
 DBCC CHECKIDENT ('PropiedadXConceptoCobro', RESEED, 0);
+DBCC CHECKIDENT ('Factura', RESEED, 0);
 DBCC CHECKIDENT ('Propiedad', RESEED, 0);
 DBCC CHECKIDENT ('Usuario', RESEED, 0);
 DBCC CHECKIDENT ('Persona', RESEED, 0);
@@ -224,13 +228,21 @@ BEGIN
 	--Procesar asociaciones Usuario/Propiedad
 	WHILE (@AsoUPFinalIndex >= @AsoUPIndex)
 	BEGIN
-		EXEC AsoUPXML @AsoUPTemp, @AsoUPIndex, @Date, @ResultCode OUTPUT, @ResultMessage OUTPUT
+		EXEC AsoUPXML @AsoUPTemp, @AsoUPIndex, @Date, @ResultCode OUTPUT, @ResultMessage OUTPUT;
 		SET @AsoUPIndex = @AsoUPIndex + 1;
 	END; --Fin del WHILE de UsuarioXPropiedad
 
 	--Procesar lecturas
-	EXEC LecturasXML @LecturaTemp, @Date, @ResultCode OUTPUT, @ResultMessage OUTPUT
+	EXEC dbo.LecturasXML @LecturaTemp, @Date, @ResultCode OUTPUT, @ResultMessage OUTPUT;
 
+	--Generar facturas
+	EXEC dbo.GenerarFacturas @Date, @ResultCode OUTPUT, @ResultMessage OUTPUT;
+
+	--Genera los detallesCC por Intereses moratorios
+	EXEC dbo.GenerarIntereses @Date, @ResultCode OUTPUT, @ResultMessage OUTPUT;
+
+	--Genera ordenes de corte
+	EXEC dbo.GenerarOrdenCorte @Date, @ResultCode OUTPUT, @ResultMessage OUTPUT;
 
 	--Se eliminan las variables tablas
 	DELETE @PropiedadTemp;
