@@ -60,6 +60,14 @@ CREATE TYPE dbo.TPago AS TABLE (
 	PRIMARY KEY CLUSTERED (Id ASC));
 GO
 
+CREATE TYPE dbo.TCambioValor AS TABLE (
+	Id INT IDENTITY (1,1) NOT NULL,
+	SEC INT NOT NULL,
+	NumeroFinca INT NOT NULL,
+	NuevoValor BIGINT NOT NULL,
+	PRIMARY KEY CLUSTERED (Id ASC));
+GO
+
 CREATE PROCEDURE dbo.PropiedadXML
 	@InTablaProp dbo.TProp READONLY,
 	@inPropIndex INT,
@@ -492,7 +500,6 @@ BEGIN
 	SET NOCOUNT ON;
 	SET @outResultCode = 0;
 	SET @outResultMessage = 'Operación exitosa';
-
 	BEGIN TRY
 		DECLARE @MovTemp TABLE (
 			Id INT PRIMARY KEY IDENTITY,
@@ -501,6 +508,16 @@ BEGIN
 			Valor INT,
 			IdPropiedad INT,
 			SaldoAnterior INT);
+
+		DECLARE @IDEVENTLECTURAS INT = 6;
+
+		--Revisa si ha sido ejecutado en la fecha ingresada
+		IF EXISTS (SELECT 1 FROM dbo.EventLogProcesosMasivos E WHERE (E.IdEventType = @IDEVENTLECTURAS) AND (E.EventDate = @inDate))
+		BEGIN
+			SET @outResultCode=50020     
+			SET @outResultMessage = 'Proceso ya ejecutado en la fecha';
+			RETURN;
+		END;
 
 		INSERT @MovTemp(
 			NumeroMedidor,
@@ -526,6 +543,7 @@ BEGIN
 		INNER JOIN dbo.PropiedadXConceptoCobro AS PC ON PC.Id = A.IdPropiedadXCC
 		INNER JOIN dbo.Propiedad AS P ON P.NumeroMedidor = L.NumeroMedidor;
 		BEGIN TRANSACTION tLectura
+
 			INSERT INTO dbo.MovimientoConsumo(
 				IdPropiedadCCAgua,
 				IdTipoMovConsumo,
@@ -543,6 +561,15 @@ BEGIN
 			SET SaldoAcumulado = M.SaldoAnterior+M.Valor
 			FROM dbo.PropiedadCCAgua AS A
 			INNER JOIN @MovTemp AS M ON M.NumeroMedidor = A.NumeroMedidor;
+
+			INSERT dbo.EventLogProcesosMasivos (
+				IdEventType, 
+				EventDate, 
+				Description)
+			VALUES (@IDEVENTLECTURAS,
+				@inDate,
+				'Proceso masivo lecturas');
+
 		COMMIT TRANSACTION tLectura
 	END TRY
 	BEGIN CATCH
@@ -600,40 +627,12 @@ BEGIN
 			@LastIdIndex INT;
 
 		--Revisa si ha sido ejecutado en la fecha ingresada
-		IF EXISTS (SELECT 1 FROM dbo.EventLogProcesosMasivos E WHERE (E.IdEventType=@IDEVENTPAGOS) AND (E.EventDate=@inDate)
-					AND E.LastIdProcessed=E.LastIdToBeProcessed)
+		IF EXISTS (SELECT 1 FROM dbo.EventLogProcesosMasivos E WHERE (E.IdEventType = @IDEVENTPAGOS) AND (E.EventDate = @inDate)
+					AND E.LastIdProcessed = E.LastIdToBeProcessed)
 		BEGIN
-			SET @outResultCode=50020     
+			SET @outResultCode = 50020     
 			SET @outResultMessage = 'Proceso ya ejecutado en la fecha';
 			RETURN;
-		END;
-
-		--Revisa si se inició y no terminó
-		IF EXISTS (SELECT 1 FROM dbo.EventLogProcesosMasivos E WHERE (E.IdEventType=@IDEVENTPAGOS) AND (E.EventDate=@inDate))
-		BEGIN
-			SELECT @LastIdIndex=E.LastIdToBeProcessed    -- Hay que iniciar el proceso despues del ultimo
-			, @IdEventLogActual= E.Id
-			FROM dbo.EventLogProcesosMasivos AS E
-			WHERE (E.IdEventType=@IDEVENTPAGOS) AND (E.EventDate=@inDate)
-		
-			SELECT @pagoIndex=P.Sec+1      -- la iteracion comienza despues del ultimo procesado
-			FROM @PagoTemp AS P 
-			WHERE P.Sec=@LastIdIndex
-		END
-		ELSE BEGIN
-			Set @pagoIndex=1;
-			INSERT dbo.EventLogProcesosMasivos (
-				IdEventType, 
-				EventDate, 
-				Description,
-				LastIdToBeProcessed,
-				LastIdProcessed)
-			VALUES (@IDEVENTPAGOS,
-				@inDate,
-				'Proceso masivo pagos',
-				@finalIndex, 0);
-	
-			SET @IdEventLogActual=SCOPE_IDENTITY();
 		END;
 
 		INSERT INTO @PagoTemp (
@@ -666,7 +665,38 @@ BEGIN
 					WHERE F2.IdPropiedad = P.Id
 						AND F2.IdEstado = 1)); --Que la factura seleccionada por propiedad sea la más antigua sin pagar;
 
-		SET @finalIndex = (SELECT MAX(P.Sec) FROM @PagoTemp P)
+		SET @finalIndex = (SELECT MAX(P.Sec) FROM @PagoTemp P);
+
+		--Revisa si se inició y no terminó
+		IF EXISTS (SELECT 1 FROM dbo.EventLogProcesosMasivos E WHERE (E.IdEventType=@IDEVENTPAGOS) AND (E.EventDate=@inDate))
+		BEGIN
+			SELECT @LastIdIndex=E.LastIdToBeProcessed    -- Hay que iniciar el proceso despues del ultimo
+			, @IdEventLogActual= E.Id
+			FROM dbo.EventLogProcesosMasivos AS E
+			WHERE (E.IdEventType=@IDEVENTPAGOS) AND (E.EventDate=@inDate);
+		
+			SELECT @pagoIndex=P.Sec+1      -- la iteracion comienza despues del ultimo procesado
+			FROM @PagoTemp AS P 
+			WHERE P.Sec=@LastIdIndex;
+		END
+		ELSE BEGIN
+			SET @pagoIndex=1;
+
+			INSERT dbo.EventLogProcesosMasivos (
+				IdEventType, 
+				EventDate, 
+				Description,
+				LastIdToBeProcessed,
+				LastIdProcessed)
+			VALUES (@IDEVENTPAGOS,
+				@inDate,
+				'Proceso masivo pagos',
+				@finalIndex,
+				0);
+
+			SET @IdEventLogActual=SCOPE_IDENTITY();
+		END;
+
 		WHILE @finalIndex > @pagoIndex
 		BEGIN
 			SELECT @numFinca = P.NumeroFinca,
@@ -678,7 +708,7 @@ BEGIN
 			FROM @PagoTemp AS P
 			WHERE P.Sec = @pagoIndex;
 
-			BEGIN TRANSACTION tPago
+			BEGIN TRANSACTION tPago;
 				--Genera el comprobante de pago
 				INSERT INTO dbo.ComprobantePago (
 					IdTipoPago,
@@ -715,19 +745,122 @@ BEGIN
 						@inDate
 					FROM dbo.OrdenCorteAgua AS OC
 					WHERE OC.IdFactura = @idFactura;
-				END
+				END;
 
-				UPdate dbo.EventLogProcesosMasivos 
-				SET LastIdProcessed=@pagoIndex
+				UPDATE dbo.EventLogProcesosMasivos 
+				SET LastIdProcessed = @pagoIndex
 				WHERE Id=@IdEventLogActual;
 
-			COMMIT TRANSACTION tPago
+			COMMIT TRANSACTION tPago;
 			SET @pagoIndex = @pagoIndex + 1;
 		END --Fin del WHILE
 	END TRY
 	BEGIN CATCH
 		IF @@TRANCOUNT>0 BEGIN
 			ROLLBACK TRANSACTION tPago;
+		END;
+		INSERT dbErrors		
+		VALUES (
+			SUSER_NAME(),
+			ERROR_NUMBER(),
+			ERROR_STATE(),
+			ERROR_SEVERITY(),
+			ERROR_LINE(),
+			ERROR_PROCEDURE(),
+			ERROR_MESSAGE(),
+			GETDATE()
+			);
+		SET @outResultCode = 50050;
+		SET @outResultMessage = 'Fallo del sistema'
+	END CATCH
+	SET NOCOUNT OFF;
+END
+GO
+
+CREATE PROCEDURE dbo.CambiarValorXML
+	@InTablaCambios dbo.TCambioValor READONLY,
+	@inDate DATE,
+	@outResultCode INT OUTPUT,
+	@outResultMessage VARCHAR(64) OUTPUT
+AS
+BEGIN
+	SET NOCOUNT ON;
+	SET @outResultCode = 0;
+	SET @outResultMessage = 'Operación exitosa';
+	BEGIN TRY
+		DECLARE @finalIndex INT,
+			@indexCambio INT,
+			@numFinca INT,
+			@nuevoVal BIGINT,
+			@IDEVENTCAMBIOS INT = 11,
+			@IdEventLogActual INT,
+			@LastIdIndex INT;
+
+		--Revisa si ha sido ejecutado en la fecha ingresada
+		IF EXISTS (SELECT 1 FROM dbo.EventLogProcesosMasivos E WHERE (E.IdEventType = @IDEVENTCAMBIOS) AND (E.EventDate = @inDate)
+					AND E.LastIdProcessed=E.LastIdToBeProcessed)
+		BEGIN
+			SET @outResultCode=50020     
+			SET @outResultMessage = 'Proceso ya ejecutado en la fecha';
+			RETURN;
+		END;
+
+		SET @finalIndex = (SELECT MAX(TC.Sec) FROM @InTablaCambios TC);
+
+		--Revisa si se inició y no terminó
+		IF EXISTS (SELECT 1 FROM dbo.EventLogProcesosMasivos E WHERE (E.IdEventType = @IDEVENTCAMBIOS) AND (E.EventDate=@inDate))
+		BEGIN
+			SELECT @LastIdIndex = E.LastIdToBeProcessed    -- Hay que iniciar el proceso despues del ultimo
+			, @IdEventLogActual = E.Id
+			FROM dbo.EventLogProcesosMasivos AS E
+			WHERE (E.IdEventType = @IDEVENTCAMBIOS) AND (E.EventDate=@inDate);
+		
+			SELECT @indexCambio = TC.Sec+1      
+			FROM @InTablaCambios AS TC 
+			WHERE TC.Sec = @LastIdIndex;
+		END;
+		ELSE BEGIN
+			SET @indexCambio = 1;
+
+			INSERT dbo.EventLogProcesosMasivos (
+				IdEventType, 
+				EventDate, 
+				Description,
+				LastIdToBeProcessed,
+				LastIdProcessed)
+			VALUES (@IDEVENTCAMBIOS,
+				@inDate,
+				'Proceso masivo cambiar valor',
+				@finalIndex,
+				0);
+
+			SET @IdEventLogActual=SCOPE_IDENTITY();
+		END;
+
+		WHILE @finalIndex > @indexCambio
+		BEGIN
+			SELECT @numFinca = TC.NumeroFinca,
+				@nuevoVal = TC.NuevoValor
+			FROM @InTablaCambios AS TC
+			WHERE TC.SEC = @indexCambio;
+
+			BEGIN TRANSACTION tCambios;
+
+				UPDATE dbo.Propiedad
+				SET ValorFiscal = @nuevoVal
+				WHERE NumeroFinca = @numFinca;
+
+				UPDATE dbo.EventLogProcesosMasivos 
+				SET LastIdProcessed = @indexCambio
+				WHERE Id=@IdEventLogActual;
+
+			COMMIT TRANSACTION tCambios;
+		END;
+
+	END TRY
+	BEGIN CATCH
+		IF @@TRANCOUNT>0 BEGIN
+			ROLLBACK TRANSACTION tCambios;
 		END;
 		INSERT dbErrors		
 		VALUES (

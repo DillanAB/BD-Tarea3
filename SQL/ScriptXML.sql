@@ -58,6 +58,8 @@ DECLARE @nodoAsoPP NVARCHAR(512);
 DECLARE @nodoAsoUP NVARCHAR(512);
 DECLARE @nodoLectura NVARCHAR(512);
 DECLARE @nodoPago NVARCHAR(512);
+DECLARE @nodoCambioVal NVARCHAR(512);
+
 --Crea una tabla temporal para guardar las fechas de operación
 DECLARE @DateTemp TABLE (
 		Id INT PRIMARY KEY IDENTITY,
@@ -81,6 +83,7 @@ BEGIN
 	SET @nodoAsoUP = '/Datos/Operacion[' + CAST(@iter AS VARCHAR(8)) + ']/PropiedadesyUsuarios/UsuarioPropiedad';
 	SET @nodoLectura = '/Datos/Operacion[' + CAST(@iter AS VARCHAR(8)) + ']/Lecturas/LecturaMedidor';
 	SET @nodoPago = '/Datos/Operacion[' + CAST(@iter AS VARCHAR(8)) + ']/Pago/Pago';
+	SET @nodoCambioVal = '/Datos/Operacion[' + CAST(@iter AS VARCHAR(8)) + ']/PropiedadCambio/PropiedadCambios';
 	SET @Date = (SELECT Fecha FROM @DateTemp WHERE Id = @iter);
 
 	--Declara las variables tablas
@@ -90,8 +93,9 @@ BEGIN
 	DECLARE @AsoUPTemp AS dbo.TAsoUP;
 	DECLARE @LecturaTemp AS dbo.TLectura;
 	DECLARE @PagoTemp AS dbo.TPago;
+	DECLARE @CambioValTemp AS dbo.TCambioValor;
 
-	--Inserta en las avariables tablas
+	--Inserta en las variables tablas
 	INSERT INTO @PropiedadTemp(
 		SEC,
 		TipoUsoPropiedad, --Guarda el nombre del tipo de Uso/Zona, no el Id
@@ -190,6 +194,17 @@ BEGIN
 	WITH (NumFinca INT,
 		TipoPago VARCHAR(64),
 		NumeroReferenciaComprobantePago INT) AS P;
+
+	INSERT INTO @CambioValTemp (
+		SEC,
+		NumeroFinca,
+		NuevoValor)
+	SELECT Row_Number() OVER ( ORDER BY P.NumFinca),
+		C.NumFinca,
+		C.Valor
+	FROM OPENXML (@hdoc, @nodoCambioVal, 1)
+	WITH (NumFinca INT,
+		Valor INT) AS C;
 
 
 	--Declara las variables para controlar los while
